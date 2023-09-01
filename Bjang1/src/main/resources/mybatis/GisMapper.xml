@@ -1,0 +1,757 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="gisSql">
+	
+	<select id="getSdList" resultType="GisVo">
+		select sd_cd, sd_nm
+		from sd_simple_3857
+		order by sd_nm
+	</select>
+	
+	<select id="getSggList" resultType="GisVo">
+		select sgg_cd, sgg_nm
+		from sgg_simple_3857
+		where sd_cd = #{sd_cd}
+		order by sgg_nm
+	</select>
+	
+	<select id="getEmdList" resultType="GisVo">
+		select hjd_cd as emd_cd, emd_nm
+		from emd_simple_3857
+		where sgg_cd = #{sgg_cd}
+		order by emd_nm
+	</select>
+	
+	<select id="getSdGeojson" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'sd_simple_3857',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'sd_cd', sd_cd,
+					'sd_nm', sd_nm,
+					'centerPoint', st_asgeojson(st_pointonsurface(geom))::jsonb
+				),
+				'geometry', st_asgeojson(geom)::jsonb
+			) as feature
+			from (
+				select st_astext(geom) geom, sd_cd, sd_nm
+				from sd_simple_3857
+			) inputs
+		) features;
+	</select>
+	
+	<select id="getSggGeojson" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'sgg_simple_3857',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'sd_cd', sd_cd,
+					'sd_nm', sd_nm,
+					'sgg_cd', sgg_cd,
+					'sgg_nm', sgg_nm,
+					'centerPoint', st_asgeojson(st_centroid(geom))::jsonb
+				),
+				'geometry', st_asgeojson(geom)::jsonb
+			) as feature
+			from (
+				select st_astext(geom) geom, sd_cd, sd_nm, sgg_cd, sgg_nm
+				from sgg_simple_3857
+				<!-- where sd_cd = '11' -->
+			) inputs
+		) features;
+	</select>
+	
+	<select id="getEmdGeojson" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'emd_simple_3857',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'sd_cd', sd_cd,
+					'sd_nm', sd_nm,
+					'sgg_cd', sgg_cd,
+					'sgg_nm', sgg_nm,
+					'emd_cd', emd_cd,
+					'emd_nm', emd_nm,
+					'centerPoint', st_asgeojson(st_centroid(geom))::jsonb
+				),
+				'geometry', st_asgeojson(geom)::jsonb
+			) as feature
+			from (
+				select st_astext(geom) geom, sd_cd, sd_nm, sgg_cd, sgg_nm, hjd_cd as emd_cd, emd_nm
+				from emd_simple_3857
+				<!-- where sd_cd = '11' -->
+				<!-- where sgg_cd = '11680' -->
+			) inputs
+		) features;
+	</select>
+	
+	<select id="getDailyEmdDensity" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'emd_simple_3857_density',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'sd_cd', sd_cd,
+					'sd_nm', sd_nm,
+					'sgg_cd', sgg_cd,
+					'sgg_nm', sgg_nm,
+					'emd_cd', emd_cd,
+					'emd_nm', emd_nm,
+					'm1', ceil(m1),
+					'f1', ceil(f1),
+					'm2', ceil(m2),
+					'f2', ceil(f2),
+					'm3', ceil(m3),
+					'f3', ceil(f3),
+					'm4', ceil(m4),
+					'f4', ceil(f4),
+					'm5', ceil(m5),
+					'f5', ceil(f5),
+					'm6', ceil(m6),
+					'f6', ceil(f6),
+					'm7', ceil(m7),
+					'f7', ceil(f7),
+					'centerPoint', st_asgeojson(center_point)::jsonb <!-- st_pointonsurface st_centroid -->
+				),
+				'geometry', st_asgeojson(geom)::jsonb
+			) as feature
+			from (
+				select *
+ 				from (
+ 					select
+ 						st_astext(geom) geom,
+ 						st_astext(st_pointonsurface(geom)) center_point,
+ 						sd_cd,
+ 						sd_nm,
+ 						sgg_cd,
+ 						sgg_nm,
+ 						hjd_cd as emd_cd,
+ 						emd_nm
+					from emd_simple_3857
+					<if test="sd_cd != null">
+						where sd_cd = #{sd_cd}
+					</if>
+					) as a
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m1
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '10'
+						group by adstrd_cd
+						) as m1
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f1
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '10'
+						group by adstrd_cd
+						) as f1
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m2
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '20'
+						group by adstrd_cd
+						) as m2
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f2
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '20'
+						group by adstrd_cd
+						) as f2
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m3
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '30'
+						group by adstrd_cd
+						) as m3
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f3
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '30'
+						group by adstrd_cd
+						) as f3
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m4
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '40'
+						group by adstrd_cd
+						) as m4
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f4
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '40'
+						group by adstrd_cd
+						) as f4
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m5
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '50'
+						group by adstrd_cd
+						) as m5
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f5
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '50'
+						group by adstrd_cd
+						) as f5
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m6
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '60'
+						group by adstrd_cd
+						) as m6
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f6
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '60'
+						group by adstrd_cd
+						) as f6
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as m7
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '70'
+						group by adstrd_cd
+						) as m7
+					using (emd_cd)
+					left join
+						(select
+							adstrd_cd as emd_cd,
+							sum(visitr_cnt) as f7
+						from tb_mg_dong_exist_vstr
+						where vst_ymd = #{vst_ymd}
+							and substring(adstrd_cd, 1, 2) = #{sd_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '70'
+						group by adstrd_cd
+						) as f7
+					using (emd_cd)
+			) inputs
+		) features;
+	</select>
+	
+	<select id="getPopulationMovementStart" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'population_movement_start_polygon',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'startSdNm', start_sd_nm,
+					'startSdCd', start_sd_cd,
+					'startSggNm', start_sgg_nm,
+					'startSggCd', start_sgg_cd,
+					'startCenterPoint', st_asgeojson(start_center_point)::jsonb,
+					<!-- 'startGeom', st_asgeojson(start_geom)::jsonb, -->
+					'visitrCnt', visitr_cnt
+				),
+				'geometry', st_asgeojson(start_geom)::jsonb
+			) as feature
+			from (
+				select
+					start_sd_nm,
+					start_sd_cd,
+					start_sgg_nm,
+					start_sgg_cd,
+					start_geom,
+					start_center_point,
+					visitr_cnt
+				from (
+					select
+						#{sgg_cd} as start_sgg_cd,
+						a.end_sgg_cd,
+						sum(a.visitr_cnt) as visitr_cnt
+					from (
+						select
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+					) as a
+					group by a.end_sgg_cd
+					limit 1
+				) as b
+				join
+					(select
+						sd_nm as start_sd_nm,
+						sd_cd as start_sd_cd,
+						sgg_nm as start_sgg_nm,
+						sgg_cd as start_sgg_cd,
+						st_astext(geom) start_geom,
+						st_astext(st_centroid(geom)) start_center_point
+					from sgg_simple_3857
+					where sgg_cd = #{sgg_cd}
+				) as c
+				using (start_sgg_cd)
+			) inputs
+		) features;
+	</select>
+	
+	<select id="getPopulationMovementEnd" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'population_movement_end_polygon',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'endSdNm', end_sd_nm,
+					'endSdCd', end_sd_cd,
+					'endSggNm', end_sgg_nm,
+					'endSggCd', end_sgg_cd,
+					'm1', ceil(m1),
+					'f1', ceil(f1),
+					'm2', ceil(m2),
+					'f2', ceil(f2),
+					'm3', ceil(m3),
+					'f3', ceil(f3),
+					'm4', ceil(m4),
+					'f4', ceil(f4),
+					'm5', ceil(m5),
+					'f5', ceil(f5),
+					'm6', ceil(m6),
+					'f6', ceil(f6),
+					'm7', ceil(m7),
+					'f7', ceil(f7),
+<!-- 					'visitrCnt', visitr_cnt -->
+					'endCenterPoint', st_asgeojson(end_center_point)::jsonb
+				),
+				'geometry', st_asgeojson(end_geom)::jsonb
+			) as feature
+			from (
+				select
+					*
+				from (
+					select
+						sd_nm as end_sd_nm,
+						sd_cd as end_sd_cd,
+						sgg_nm as end_sgg_nm,
+						sgg_cd as end_sgg_cd,
+						st_astext(geom) end_geom,
+						st_astext(st_centroid(geom)) end_center_point
+					from sgg_simple_3857
+				) as a
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m1
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '10'
+					) as od
+					group by od.end_sgg_cd
+				) as m1
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f1
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '10'
+					) as od
+					group by od.end_sgg_cd
+				) as f1
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m2
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '20'
+					) as od
+					group by od.end_sgg_cd
+				) as m2
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f2
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '20'
+					) as od
+					group by od.end_sgg_cd
+				) as f2
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m3
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '30'
+					) as od
+					group by od.end_sgg_cd
+				) as m3
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f3
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '30'
+					) as od
+					group by od.end_sgg_cd
+				) as f3
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m4
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '40'
+					) as od
+					group by od.end_sgg_cd
+				) as m4
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f4
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '40'
+					) as od
+					group by od.end_sgg_cd
+				) as f4
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m5
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '50'
+					) as od
+					group by od.end_sgg_cd
+				) as m5
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f5
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '50'
+					) as od
+					group by od.end_sgg_cd
+				) as f5
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m6
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '60'
+					) as od
+					group by od.end_sgg_cd
+				) as m6
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f6
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '60'
+					) as od
+					group by od.end_sgg_cd
+				) as f6
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as m7
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'M'
+						and agrde_cd = '70'
+					) as od
+					group by od.end_sgg_cd
+				) as m7
+				using (end_sgg_cd)
+				left join	
+					(select
+						od.end_sgg_cd,
+						sum(od.visitr_cnt) as f7
+					from (
+						select 
+							dptrp_signgu_cd as start_sgg_cd,
+							dtnt_signgu_cd as end_sgg_cd,
+							visitr_cnt
+						from tb_mg_sgg_od_vstr
+						where vst_ymd = #{vst_ymd}
+						and dptrp_signgu_cd = #{sgg_cd}
+						and sex_cd = 'F'
+						and agrde_cd = '70'
+					) as od
+					group by od.end_sgg_cd
+				) as f7
+				using (end_sgg_cd)
+			) inputs
+		) features;
+	</select>
+	
+	<select id="getInfectionDiseaseList" resultType="GisVo">
+		select *
+		from infection_disease_code
+	</select>	
+	
+	<select id="getInfectionDiseaseCount" resultType="GisVo">
+		select jsonb_build_object(
+			'type', 'FeatureCollection',
+			'name', 'sd_simple_3857',
+			'features', jsonb_agg(features.feature)
+		) 
+		from (
+			select jsonb_build_object(
+				'type', 'Feature',
+				'properties', jsonb_build_object(
+					'gb', gb,
+					'infdisid', infdisid,
+					'infdisnm', infdisnm,
+					'sd_cd', sd_cd,
+					'sd_nm', sd_nm,
+					'year', year,
+					'month', month,
+					'count', count,
+					'prevCount', prevCount,
+<!-- 					'count', count, -->
+					'centerPoint', st_asgeojson(st_pointonsurface(geom))::jsonb
+				),
+<!-- 				'geometry', st_asgeojson(geom)::jsonb -->
+				'geometry', st_asgeojson(st_pointonsurface(geom))::jsonb
+			) as feature
+			from (
+				select *
+				from (
+					select 
+						gb,
+						infdisid,
+						infdisnm,
+						sicd as sd_cd,
+						sinm as sd_nm,
+						year,
+						month,
+						count
+					from infection_disease_tbl idt
+					where infdisid = #{infdisid}
+					and year = #{currInfYear}
+					and month = #{currInfMonth}
+				) as inf
+				join
+					(select 
+						sicd as sd_cd,
+						count as prevCount
+					from infection_disease_tbl idt
+					where infdisid = #{infdisid}
+					and year = #{prevInfYear}
+					and month = #{prevInfMonth}
+					) as prevCount
+				using (sd_cd)
+				join
+					(select sd_cd, geom, st_centroid(geom) center
+<!-- 					(select sd_cd, sd_nm, geom, st_centroid(geom) center -->
+						from sd_simple_3857
+					) as sd
+				using (sd_cd)
+			) inputs
+		) features;
+	</select>
+	
+</mapper>

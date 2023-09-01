@@ -1,0 +1,93 @@
+@charset "utf-8";
+
+
+select {
+    display: none;
+}
+
+.myDiv {
+    display: flex;
+    align-items: flex-start;
+    position: relative;
+    color: #5F5F5F;
+    font-size: 12px;
+    font-weight: 400;
+    margin-right: 10px;
+}
+
+.select-frame .myDiv:last-child {
+    margin-right: 0;
+}
+
+.mySelect {
+    position: relative;
+    border: 1px solid #d2d2d2;
+    background: #fff;
+    cursor: pointer;
+    height: 34px;
+    line-height: 34px;
+    min-width: 110px;
+    max-width: 160px;
+}
+
+.mySelect .selec {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 30px 0 15px;
+}
+
+.mySelect .selec::after {
+    content: '';
+    display: block;
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    background: url(../img/pj_1/icon_selectArrow.png)no-repeat center;
+    background-size: 8px;
+}
+
+.ul_select {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    width: calc(100% + 2px);
+    top: 100%;
+    left: -1px;
+    background: #fff;
+    border: 1px solid #d2d2d2;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.ul_select.on {
+    display: block;
+}
+
+.ul_select.on~.mySelect .selec::after {
+    transform: rotate(180deg);
+}
+
+.ul_select li {
+    position: relative;
+    width: 100%;
+    padding: 0 15px;
+    height: auto;
+    border-top: 1px solid #d2d2d2;
+    word-break: break-all;
+}
+
+.ul_select li:first-child {
+    border-top: none;
+}
+
+.ul_select li:hover,
+.ul_select li:focus {
+    background: #EAF4FF;
+    color: #1D6CDB;
+}

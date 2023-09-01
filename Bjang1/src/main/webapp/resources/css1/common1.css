@@ -1,0 +1,230 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+img {
+    vertical-align: top;
+}
+
+button {
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+li {
+    list-style: none;
+}
+
+a {
+    display: inline-block;
+    text-decoration: none;
+    color: inherit;
+    font-style: normal;
+}
+
+/*텍스트 정렬 클래스*/
+.txt-c {
+    text-align: center;
+}
+
+.txt-l {
+    text-align: left;
+}
+
+/*너비 지정 클래스*/
+.w-100 {
+    width: 100%;
+}
+
+.w-50 {
+    width: 50%;
+}
+
+/* 플렉스 클래스 */
+.flex,
+.flex-inline,
+.flex-center,
+.flex-both,
+.flex-both-start,
+.flex-start,
+.flex-end,
+.flex-list,
+.flex-col,
+.flex-base {
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+}
+
+.flex-inline {
+    display: -ms-inline-flexbox;
+    display: -webkit-inline-flex;
+    display: inline-flex;
+}
+
+.flex-center {
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.flex-both {
+    -webkit-justify-content: space-between;
+    -ms-flex-pack: justify;
+    justify-content: space-between;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.flex-both-start {
+    -webkit-justify-content: space-between;
+    -ms-flex-pack: justify;
+    justify-content: space-between;
+    -webkit-align-items: flex-start;
+    -ms-flex-align: start;
+    align-items: flex-start;
+}
+
+.flex-start {
+    -webkit-justify-content: flex-start;
+    -ms-flex-pack: justify;
+    justify-content: flex-start;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.flex-end {
+    -webkit-justify-content: flex-end;
+    -ms-flex-pack: justify;
+    justify-content: flex-end;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.flex-list {
+    -webkit-flex-wrap: wrap;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+    -webkit-align-items: flex-start;
+    -ms-flex-align: start;
+    align-items: flex-start;
+}
+
+.flex-col {
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
+    flex-direction: column;
+}
+
+.flex-base {
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-align-items: baseline;
+    -ms-flex-align: baseline;
+    align-items: baseline;
+}
+
+
+/* 마진 클래스 */
+.mr-4 {
+    margin-right: 4px;
+}
+
+.mr-8 {
+    margin-right: 8px;
+}
+
+.mr-10 {
+    margin-right: 10px;
+}
+
+.mr-12 {
+    margin-right: 12px;
+}
+
+.mr-15 {
+    margin-right: 15px;
+}
+
+.mr-20 {
+    margin-right: 20px;
+}
+
+.mb-4 {
+    margin-bottom: 4px;
+}
+
+.mb-6 {
+    margin-bottom: 6px;
+}
+
+.mb-8 {
+    margin-bottom: 8px;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-12 {
+    margin-bottom: 12px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.mb-30 {
+    margin-bottom: 30px;
+}
+
+
+/* 패딩 클래스 */
+.pb-4 {
+    padding-bottom: 4px;
+}
+.pb-8 {
+    padding-bottom: 8px;
+}
+
+/*보더 클래스*/
+.bor-b-1-ef {
+    border-bottom: 1px solid #EFEFEF;
+}
+
+/* 스크롤 */
+/*전체 영역에 대한 설정*/
+*::-webkit-scrollbar {
+    width: 6px;
+}
+
+/*뒷 배경에 대한 설정*/
+*::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/*막대에 대한 설정*/
+*::-webkit-scrollbar-thumb {
+    background: paleturquoise;
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    background-color: #989898;
+    border-radius: 4px;
+}
+
+
+/* 컬러 지정 클래스 */
+.color-blue {
+    color: #1D6CDB;
+}

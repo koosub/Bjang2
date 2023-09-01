@@ -1,0 +1,128 @@
+/* Openlayers 라이브러리 css */
+
+.ol-attribution {
+	display: none;
+}
+
+.ol-zoomslider {
+	display: none;
+}
+
+.ol-zoom {
+	bottom: 80px;
+	left: 20px;
+}
+
+.ol-control button {
+	height: 1.5em;
+    width: 1.5em;
+    font-size: 20px;
+}
+
+.ol-scale-bar {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+}
+
+.ol-scale-text {
+	font-size: 14px;
+	font-weight: bold;
+	bottom: 30px
+}
+
+.ol-scale-step-text {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* GIS 관련 css */
+
+#mainMap {
+	width: 100%;
+	height: 100%;
+}
+
+.toolTip {
+	display: none;
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	top: 90px;
+	background: #ffffff;
+	border: 1px solid #E0E0E0;
+	border-radius: 8px;
+	padding: 8px;
+	z-index: 20;
+	font-size: 16px;
+	font-weight: bold;
+}
+
+.apply_button {
+	width: 100%;
+    height: 30px;
+	color: #fff;
+	background: #2f87ff;
+	border-radius: 4px;
+    padding: 2px;
+    margin: 5px;
+}
+
+.legend-wrap {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 80px;
+    left: 0;
+}
+
+.legend {
+    display: none;
+    background: #ffffff;
+    border: 1px solid #000000;
+    left: 16px;
+    bottom: 16px;
+    padding: 12px;
+    margin: 10px 0px 0px 10px;
+    border: 1px solid var(--gray-200);
+    box-shadow: 0px 4px 11px rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    z-index: 30;
+}
+
+.legend table {
+    text-align: left;
+    border-collapse: collapse;
+}
+
+.legend table tr td {
+    color: var(--gray-700);
+    font-size: 14px;
+    font-weight: 400;
+    vertical-align: middle;
+}
+
+.legend table tr {
+    height: 24px;
+}
+
+.legend table tr td:first-child {
+    width: 34px;
+    border-right: 12px solid #fff;
+}
+
+.legend table tr td:last-child {
+    border-right: 8px solid #fff;
+}
+
+.legend table tr td strong {
+    color: var(--gray-700);
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.legend span {
+    display: inline-block;
+    width: 20px;
+    height: 10px;
+}

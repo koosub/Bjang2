@@ -1,0 +1,818 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="Bjang">
+
+<!-- 	<select id="InfDis" resultType="InfectionVo" parameterType="Map">
+ 	select idt.sicd ,latitude lat, longitude lng, scv.sinm, sum(count) count , year, month
+	from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd) join latlng_tbl lt on (lt.sicd = idt.sicd)
+	where year = cast(to_char( now()-interval '1 month', 'yyyy') as INT) and month = cast(to_char( now() -interval '1 month', 'mm') as INT)
+			<if test="keyword1 != null and keyword1 != '' ">
+			and infdisnm = #{keyword1}
+			</if>
+			<if test="keyword2 != null and keyword2 != '' ">
+			and scv.sinm = #{keyword2}
+			</if>
+	group by scv.sinm, latitude, longitude, year, month, idt.sicd
+	</select> -->
+	
+	<select id="InfDis" resultType="InfectionVo" parameterType="Map">
+ 	select idt.sicd ,latitude lat, longitude lng, scv.sinm, sum(count) count , COALESCE(trunc((sum(count)-a.scount)/nullif(a.scount, 0)*100,2), 0) scount, idt.year, idt.month
+	from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd) join latlng_tbl lt on (lt.sicd = idt.sicd) join (
+	select year, month, sinm, sum(count) scount from infection_disease_tbl idt
+	where year = cast(to_char( now()-interval '2 month', 'yyyy') as INT) and month = cast(to_char( now() -interval '2 month', 'mm') as INT)
+	<if test="keyword1 != null and keyword1 != '' ">
+	and infdisnm = #{keyword1}
+	</if>
+	group by year, month, sinm
+	order by sinm) a on (idt.sinm = a.sinm) 
+	where idt.year = cast(to_char( now()-interval '1 month', 'yyyy') as INT) and idt.month = cast(to_char( now() -interval '1 month', 'mm') as INT)
+	<if test="keyword1 != null and keyword1 != '' ">
+	and infdisnm = #{keyword1}
+	</if>
+<!-- 	<if test="keyword2 != null and keyword2 != '' ">
+	and scv.sinm = #{keyword2}
+	</if> -->
+	group by scv.sinm, latitude, longitude, idt.year, idt.month, idt.sicd, a.scount
+	</select>
+	
+	
+	<select id="InfDis_LastYear" resultType="InfectionVo" parameterType="Map">
+	select year, month, sum(count) count from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd)
+	where year = cast(to_char(now() -interval '1 month', 'yyyy') as int) and cast(to_char(now() -interval '1 month', 'mm') as int) >= month 
+	<if test="keyword1 != null and keyword1 != '' ">
+	and infdisnm = #{keyword1}
+	</if>
+	group by year, month
+	UNION
+	select year, month, sum(count) count from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd)
+	where year = cast(to_char( now()-interval '12 month', 'yyyy') as INT) and month >= cast (to_char( now() -interval '12 month', 'mm') as INT)
+	<if test="keyword1 != null and keyword1 != '' ">
+	and infdisnm = #{keyword1}
+	</if>
+	group by year, month
+	order by year, month
+	</select>
+	
+	<select id="SDInf" resultType="Int" parameterType="Map">
+		select max(a.count) as scount from infection_disease_tbl idt2 join
+		(select year, month, sum(count) as count from infection_disease_tbl idt 
+		where year = cast(to_char( now()-interval '12 month', 'yyyy') as INT)
+		<if test="keyword1 != null and keyword1 != '' ">
+			and infdisnm = #{keyword1}
+		</if>
+		or year = cast(to_char( now()-interval '1 month', 'yyyy') as INT)
+		<if test="keyword1 != null and keyword1 != '' ">
+			and infdisnm = #{keyword1}
+		</if>
+		group by year, month order by month)a 
+		on(a.month = idt2.month)
+	</select>
+	
+	
+
+	<select id="Key1" resultType="InfectionVo">
+	select infdisnm, sum(count) from infection_disease_tbl idt where year = cast(to_char(now() -interval '1 month', 'yyyy') as int) and cast(to_char(now() -interval '1 month', 'mm') as int) >= month
+	group by infdisnm
+	order by sum desc
+	</select>
+	
+	<select id="Key2" resultType="SiVo">
+		select idt.sicd, scv.sinm from infection_disease_tbl idt join si_code_vw scv on(idt.sicd = scv.sicd)
+		group by scv.sinm ,idt.sicd
+		order by sicd
+	</select>
+
+	<select id="news_volume_total" resultType="NewsVo" parameterType="Map">
+		select year, month, COALESCE(sum(value),0) volume from webdata_value_tbl wvt
+		where year = 2019 and type = 'news'
+		<if test="keyword1 != null and keyword1 != '' ">
+		and epidemicnm = #{keyword1}
+		</if>
+		group by year, month
+		order by month
+	</select>
+	
+	<select id="news_volume_totalMax" resultType="INT" parameterType="Map">
+	select COALESCE(max(a.sv),0) as new_volume from webdata_value_tbl wvt join (select year, month, sum(value) as sv from webdata_value_tbl wvt
+	where year = 2019 and type = 'news'
+	<if test="keyword1 != null and keyword1 != '' ">
+	and epidemicnm = #{keyword1}
+	</if>
+	group by year, month
+	order by year, month) a on(a.month = wvt.month)
+	</select>
+	
+	<select id="search_keyword_total" resultType="SearchVo" parameterType="Map">
+	select s.date date, round(cast(a.sq1 as float)/count(*)) sq1, round(cast(a.sq2 as float)/count(*)) sq2, round(cast(a.sq3 as float)/count(*)) sq3, round(cast(a.sq4 as float)/count(*)) sq4, round(cast(a.sq5 as float)/count(*)) sq5, round(cast(a.sq6 as float)/count(*)) sq6, round(cast(a.sq7 as float)/count(*)) sq7, round(cast(a.sq8 as float)/count(*)) sq8, round(cast(a.sq9 as float)/count(*)) sq9, round(cast(a.sq10 as float)/count(*)) sq10, round(cast(a.sq11 as float)/count(*)) sq11, round(cast(a.sq12 as float)/count(*)) sq12 from searchq_1 as s join(
+	select date, sum(cast(sq1 as float)) sq1, sum( cast(sq2 as float)) sq2, sum(cast(sq3 as float)) sq3, sum(cast(sq4 as float)) sq4, sum(cast(sq5 as float)) sq5, sum(cast(sq6 as float)) sq6, sum(cast(sq7 as float)) sq7, sum(cast(sq8 as float)) sq8, sum(cast(sq9 as float)) sq9, sum(cast(sq10 as float)) sq10, sum(cast(sq11 as float)) sq11, sum(cast(sq12 as float)) sq12 from searchq_1 s1
+	where date like concat(concat('%',to_char(now()-interval '1 month', 'yyyy'),'%')) and date like concat(concat('%',to_char(now()-interval '1 month', 'mm'),'%'))
+	<if test="keyword1 != null and keyword1 != '' ">
+		and infdisnm like CONCAT(CONCAT('%',#{keyword1}),'%')
+	</if>
+	group by date) a on (s.date = a.date)
+	where s.date like concat(concat('%',to_char(now()-interval '1 month', 'yyyy'),'%')) and s.date like concat(concat('%',to_char(now()-interval '1 month', 'mm'),'%'))
+	<if test="keyword1 != null and keyword1 != '' ">
+	and infdisnm like CONCAT(CONCAT('%',#{keyword1}),'%')
+	</if>
+	group by s.date, a.sq1, a.sq2, a.sq3, a.sq4, a.sq5, a.sq6, a.sq7, a.sq8, a.sq9, a.sq10, a.sq11, a.sq12
+	</select>
+
+	<select id="prev_month_InfDis_dif" resultType="MapCatoVo" parameterType="Map">
+		select scv.sinm, sum(count) - cnt as difVal, sum(count) as curVal, latitude lat, longitude lng from infection_disease_tbl idt join si_code_vw scv on (idt.sicd = scv.sicd) join(
+		select scv1.sinm as name, sum(count) cnt 
+		from infection_disease_tbl idt1 join si_code_vw scv1 on (idt1.sicd = scv1.sicd)
+		where year = cast(to_char(now() -interval '2 month', 'yyyy') as int) and month = cast(to_char(now() -interval '2 month', 'mm') as int)
+		<if test="keyword1 != null and keyword1 != '' ">
+			and infdisnm = #{keyword1}
+		</if>
+		<if test="keyword2 != null and keyword2 != '' ">
+			and scv1.sinm = #{keyword2}
+		</if>
+		group by name)a on (a.name = scv.sinm) join latlng_tbl lt on (idt.sicd = lt.sicd)
+		where year = cast(to_char(now() -interval '1 month', 'yyyy') as int) and month = cast(to_char(now() -interval '1 month', 'mm') as int)
+		<if test="keyword1 != null and keyword1 != '' ">
+			and infdisnm = #{keyword1}
+		</if>
+		<if test="keyword2 != null and keyword2 != '' ">
+			and scv.sinm = #{keyword2}
+		</if>
+		group by scv.sinm, cnt, lat, lng
+	</select>
+	
+	<select id="InfDis_current_year" resultType="InfectionVo" parameterType="Map">
+	select  year, month, sum(count) count
+	from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd )
+	<where>
+	<if test="year == null or year == '' ">
+		AND year = cast(to_char( now()-interval '1 month', 'yyyy') as INT)
+	</if>
+	<if test="year != null and year != '' ">
+		AND year = #{year}
+	</if>
+	<if test="Year3Epid != null and Year3Epid != '' ">
+	AND infdisnm = #{Year3Epid}
+	</if>
+	<if test="region != null and region != '' ">
+		AND scv.sinm = #{region}
+	</if>
+	</where>	
+	group by  year ,month
+	order by month
+	</select>
+	
+	<select id="InfDis_last_year" resultType="InfectionVo" parameterType="Map">
+	select  year, month, sum(count) count
+	from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd )
+	<where>
+	<if test="year == null or year == '' ">
+		AND year = cast(to_char( now()-interval '1 month' -interval '1 year', 'yyyy') as INT)
+	</if>
+	<if test="year != null and year != '' ">
+		AND year = #{year} -1
+	</if>
+	<if test="Year3Epid != null and Year3Epid != '' ">
+	AND infdisnm = #{Year3Epid}
+	</if>
+	<if test="region != null and region != '' ">
+		AND scv.sinm = #{region}
+	</if>
+	</where>	
+	group by  year ,month
+	order by month
+	</select>
+	
+	<select id="InfDis_before_last_year" resultType="InfectionVo" parameterType="Map">
+	select  year, month, sum(count) count
+	from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd )
+	<where>
+	<if test="year == null or year == '' ">
+		AND year = cast(to_char( now()-interval '1 month' - interval '2 year', 'yyyy') as INT)
+	</if>
+	<if test="year != null and year != '' ">
+		AND year = #{year} -2
+	</if>
+	<if test="Year3Epid != null and Year3Epid != '' ">
+	AND infdisnm = #{Year3Epid}
+	</if>
+	<if test="region != null and region != '' ">
+		AND scv.sinm = #{region}
+	</if>
+	</where>	
+	group by  year ,month
+	order by month
+	</select>
+	
+	<select id="InfDis_Top5" resultType="InfectionVo" parameterType="Map">
+	select infdisnm , sum(count) count from infection_disease_tbl idt join si_code_vw scv on (scv.sicd = idt.sicd)
+	<where> 
+		<if test="year == null or year == '' ">
+			AND year = cast(to_char( now()-interval '1 month', 'yyyy') as INT)
+		</if>
+		<if test="year != null and year != '' ">
+			AND year = #{year}
+		</if>
+		<if test="month == null or month =='' ">
+			AND month = cast(to_char( now()-interval '1 month', 'mm') as int)
+		</if>
+		<if test="month != null and month != '' ">
+			AND month = #{month}
+		</if>
+		<if test="region != null and region != '' ">
+			AND scv.sinm = #{region}
+		</if>
+	</where>
+	group by infdisnm
+	order by count desc
+	limit  5 offset 0
+	</select>
+	
+	<select id="InfDis_genderPer" resultType="InfectionVo" parameterType="Map">
+	select sex, sum(count) count from infection_disease_detail_tbl iddt natural join infection_disease_code idc natural join si_code_vw scv
+	<where>
+	<if test="genderPerEpid != null and genderPerEpid != '' ">
+		AND infdisnm = #{genderPerEpid}
+	</if>
+	<if test="year == null or year == '' ">
+		AND substring(date,1,4) = cast(to_char( now()-interval '1 month', 'yyyy') as text)
+	</if>
+	<if test="year != null and year != '' ">
+		AND substring(date,1,4) = #{year}
+	</if>
+	<if test="month == null or month =='' ">
+		AND substring(date,6,2) = cast(to_char( now()-interval '1 month', 'mm') as text)
+	</if>
+	<if test="month != null and month != '' ">
+		AND substring(date,6,2) = #{month}
+	</if>
+	<if test="region != null and region != '' ">
+		AND scv.sinm = #{region}
+	</if>
+	</where>
+	group by sex
+	</select>	
+
+
+	<select id="InfDis_age" resultType="InfectionVo" parameterType="Map">
+	select age , sum(count) count from infection_disease_detail_tbl iddt natural join infection_disease_code idc natural join si_code_vw scv
+	<where>
+		<if test="ageEpid != null and ageEpid != '' ">
+			AND infdisnm = #{ageEpid}
+		</if>
+		<if test="year == null or year == '' ">
+			AND substring(date,1,4) = cast(to_char( now()-interval '1 month', 'yyyy') as text)
+		</if>
+		<if test="year != null and year != '' ">
+			AND substring(date,1,4) = #{year}
+		</if>
+		<if test="month == null or month =='' ">
+			AND substring(date,6,2) = cast(to_char( now()-interval '1 month', 'mm') as text)
+		</if>
+		<if test="month != null and month != '' ">
+			AND substring(date,6,2) = #{month}
+		</if>
+		<if test="region != null and region != '' ">
+			AND scv.sinm = #{region}
+		</if>
+	</where> 
+	group by age
+	</select>
+	
+	
+
+	<select id="InfDis_year_list" resultType="InfectionVo">
+	select year from infection_disease_tbl idt
+	group by year
+	order by year desc
+	</select>
+
+	<select id="InfDis_month_list" resultType="InfectionVo" parameterType="Map">
+	select month from infection_disease_tbl idt
+	where year = cast(to_char( now()-interval '1 month', 'yyyy') as int)
+	group by month
+	order by month
+	</select>
+
+	<select id="InfDis_nationwide" resultType="InfectionVo" parameterType="Map">
+	select sum(count) count from infection_disease_detail_tbl iddt 
+	</select> 
+	
+	<select id="NCont" resultType="ContentVo" parameterType="Map">
+	select date, content, url from newscontent_tbl nt
+	where content like CONCAT(CONCAT('%',
+	<if test="keyword1 != null and keyword1 != '' ">
+		substring(#{keyword1}, 0, 4)
+	</if>
+ 	<if test="keyword1 == null ">
+		''
+	</if>
+	),'%') and date like concat(concat('%',to_char(now()-interval '1 month', 'yyyy'),'%')) and date like concat(concat('%',to_char(now()-interval '1 month', 'mm'),'%'))
+	limit #{perPage} offset (#{page}-1)* #{perPage}
+	</select>
+	
+	<select id="NContCnt" resultType="Double" parameterType="Map">
+		select count(distinct mt2."content") from newscontent_tbl mt1 join (select max(date) date, content, url from newscontent_tbl mt
+		where content like CONCAT(CONCAT('%',
+		<if test="keyword1 != null and keyword1 != '' ">
+			substring(#{keyword1}, 0, 4)
+		</if>
+ 		<if test="keyword1 == null ">
+			''
+		</if>
+		),'%') and date like concat(concat('%',to_char(now()-interval '1 month', 'yyyy'),'%')) and date like concat(concat('%',to_char(now()-interval '1 month', 'mm'),'%'))
+		group by content, url 
+		order by date desc) mt2 on (mt1."content" = mt2."content")
+	</select>
+	
+	<select id="NSCont" resultType="ContentVo" parameterType="Map">
+	select date, content, url from newscontent_tbl
+	<where>
+		<if test="keyword1 != null and keyword1 != '' ">
+			AND content like CONCAT(CONCAT('%',	substring(#{keyword1}, 0, 4)),'%') 
+		</if>
+		<if test="keyword1 == null ">
+			AND content like CONCAT(CONCAT('%',''),'%') 
+		</if>
+		<if test="keyword2 != null and keyword2 != '' ">
+			AND content like CONCAT(CONCAT('%',	SubString(#{keyword2},1,2) ),'%')
+		</if>
+		and date like concat(concat('%',to_char(now()-interval '1 month', 'yyyy'),'%')) and date like concat(concat('%',to_char(now()-interval '1 month', 'mm'),'%'))
+	</where>
+	limit #{NSperPage} offset (#{NSpage}-1)* #{NSperPage}
+	</select>
+	
+	<select id="NSContCnt" resultType="Double" parameterType="Map">
+		select count(distinct mt2."content") from newscontent_tbl mt1 join (select max(date) date, content, url from newscontent_tbl mt
+		<where>
+			<if test="keyword1 != null and keyword1 != '' ">
+				AND content like CONCAT(CONCAT('%',	substring(#{keyword1}, 0, 4)),'%')
+			</if>
+			<if test="keyword1 == null ">
+				AND content like CONCAT(CONCAT('%',''),'%') 
+			</if>
+			<if test="keyword2 != null and keyword2 != '' ">
+				AND content like CONCAT(CONCAT('%',	SubString(#{keyword2},1,2) ),'%')
+			</if>
+			and date like concat(concat('%',to_char(now()-interval '1 month', 'yyyy'),'%')) and date like concat(concat('%',to_char(now()-interval '1 month', 'mm'),'%'))
+	</where> 
+		group by content, url 
+		order by date desc) mt2 on (mt1."content" = mt2."content")
+	</select>
+	
+	<select id="InfDis_nation" resultType="InfectionVo" parameterType="Map">
+	select sum(count) count
+	from infection_disease_detail_tbl iddt natural join si_code_vw scv natural join infection_disease_code idc
+	<where>
+		<if test="lastDays == '최근 7일'">
+			date between '2022-12-24' and '2022-12-31'
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</if>
+		<if test="lastDays == '최근 30일' ">
+			date between '2022-12-01' and '2022-12-31'
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</if>
+		<if test="lastDays == '최근 1년' ">
+			date between '2022-01-01' and '2022-12-31'
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</if>
+	</where>
+	</select>
+	
+	<select id="InfDis_region" resultType="InfectionVo" parameterType="Map">
+	select sum(count) count
+	from infection_disease_detail_tbl iddt natural join si_code_vw scv natural join infection_disease_code idc
+	<where>
+		<if test="lastDays == '최근 7일' ">
+			date between '2022-12-24' and '2022-12-31'
+			<if test="region != null and region != '' ">
+				AND scv.sinm = #{region}
+			</if>
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</if>
+		<if test="lastDays == '최근 30일' ">
+			date between '2022-12-01' and '2022-12-31'
+			<if test="region != null and region != '' ">
+				AND scv.sinm = #{region}
+			</if>
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</if>
+		<if test="lastDays == '최근 1년' ">
+			date between '2022-01-01' and '2022-12-31'
+			<if test="region != null and region != '' ">
+				AND scv.sinm = #{region}
+			</if>
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</if>
+	</where> 
+	
+	</select>
+	
+	<select id="InfDis_chart" resultType="InfectionVo" parameterType="Map">
+	<if test="lastDays == '최근 7일'">
+		select substring(date,1,4) as year, substring(date,6,2) as month,substring(date,9,2) as day , sum(count) count
+		from infection_disease_detail_tbl iddt natural join si_code_vw scv natural join infection_disease_code idc
+		<where>
+			date between '2022-12-24' and '2022-12-31'
+			<if test="region != null and region != '' ">
+				AND scv.sinm = #{region}
+			</if>
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</where> 
+		group by year, month, day
+		order by day
+	</if>
+	<if test="lastDays == '최근 30일' ">
+		select substring(date,1,4) as year, substring(date,6,2) as month,substring(date,9,2) as day , sum(count) count
+		from infection_disease_detail_tbl iddt natural join si_code_vw scv natural join infection_disease_code idc
+		<where>
+			date between '2022-12-01' and '2022-12-31'
+			<if test="region != null and region != '' ">
+				AND scv.sinm = #{region}
+			</if>
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</where> 
+		group by year, month, day
+		order by month, day
+	</if>
+	<if test="lastDays == '최근 1년' ">
+		select substring(date,1,4) as year, substring(date,6,2) as month,substring(date,9,2) as day , sum(count) count
+		from infection_disease_detail_tbl iddt natural join si_code_vw scv natural join infection_disease_code idc
+		<where>
+			date between '2022-01-01' and '2022-12-31'
+			<if test="region != null and region != '' ">
+				AND scv.sinm = #{region}
+			</if>
+			<if test="infdis != null and infdis != ''">
+				AND infdisnm = #{infdis}
+			</if>
+		</where> 
+		group by year, month, day
+		order by year, month, day
+	</if>
+	</select>
+
+	
+	<select id="InDe" resultType="UDVo" parameterType="Map">
+	select substring(idt.infdisnm, 0, 3)||1 as infdnm, idt.infdisnm as infdisnm, sum(count) as sum, (sum(count)-a.ssum) as total, a.ssum as ssum, definition, symptom, relevant from infection_disease_tbl idt join (
+	select idt2.infdisnm, sum(count) as ssum from infection_disease_tbl idt2 join si_code_vw scv1 on (scv1.sicd = idt2.sicd)
+	where year = cast(to_char(now() -interval '2 month', 'yyyy') as int) and cast(to_char(now() -interval '2 month', 'mm') as int) = month 
+	<if test="keyword2 != null and keyword2 != '' ">
+	and scv1.sinm = #{keyword2}
+	</if>
+	group by idt2.infdisnm order by ssum desc limit 3 offset 0)a on(a.infdisnm = idt.infdisnm) join si_code_vw scv on (scv.sicd = idt.sicd) join inf_arrange ia on(idt.infdisnm = ia.infdisnm)
+	
+	where year = cast(to_char(now() -interval '1 month', 'yyyy') as int) and cast(to_char(now() -interval '1 month', 'mm') as int) = month
+	<if test="keyword2 != null and keyword2 != '' ">
+	and scv.sinm = #{keyword2}
+	</if>
+	group by idt.infdisnm, a.ssum, definition, symptom, relevant
+	having sum(count) != 0 or (sum(count)-a.ssum) != 0
+	order by sum(count) desc
+	limit 3 offset 0
+	</select>
+	
+	<select id="UpDe" resultType="UDVo" parameterType="Map">
+	select substring(idt.infdisnm, 0, 3)||1 as infdnm, idt.infdisnm as infdisnm, sum(count) as sum, (sum(count)-a.ssum) as total, a.ssum as ssum from infection_disease_tbl idt join (
+	select idt2.infdisnm, sum(count) as ssum from infection_disease_tbl idt2 join si_code_vw scv1 on (scv1.sicd = idt2.sicd)
+	where year = cast(to_char(now() -interval '2 month', 'yyyy') as int) and cast(to_char(now() -interval '2 month', 'mm') as int) = month 
+	<if test="keyword2 != null and keyword2 != '' ">
+	and scv1.sinm = #{keyword2}
+	</if>
+	group by idt2.infdisnm order by ssum desc limit 90 offset 3)a on(a.infdisnm = idt.infdisnm) join si_code_vw scv on (scv.sicd = idt.sicd)
+	where year = cast(to_char(now() -interval '1 month', 'yyyy') as int) and cast(to_char(now() -interval '1 month', 'mm') as int) = month
+	<if test="keyword2 != null and keyword2 != '' ">
+	and scv.sinm = #{keyword2}
+	</if>
+	group by idt.infdisnm, a.ssum
+	having sum(count) != 0 or (sum(count)-a.ssum) != 0
+	order by sum(count) desc
+	</select>
+
+	<select id="JIC" resultType="UDVo" parameterType="Map">
+	select infdisnm, sum(count) sum from infection_disease_tbl idt join si_code_vw scv on (idt.sicd = scv.sicd)
+	where year = cast(to_char(now() -interval '1 month', 'yyyy') as int) and cast(to_char(now() -interval '1 month', 'mm') as int) = month
+	<if test="keyword2 != null and keyword2 != '' ">
+	and scv.sinm = #{keyword2}
+	</if>
+	group by infdisnm
+	having sum(count) != 0
+	order by sum
+	</select>
+	
+	<select id="Risk" resultType="RiskVo" parameterType="Map">
+	select round(avg(r1)::numeric, 2) r1, round(avg(r2)::numeric, 2) r2, round(avg(r3)::numeric, 2) r3, round(avg(r4)::numeric, 2) r4,
+	round(avg(r5)::numeric, 2) r5, round(avg(r6)::numeric, 2) r6, round(avg(r7)::numeric, 2) r7, round(avg(r8)::numeric, 2) r8,
+	round(avg(r9)::numeric, 2) r9, round(avg(r10)::numeric, 2) r10, round(avg(r11)::numeric, 2) r11, round(avg(r12)::numeric, 2) r12 from risk_tbl rt
+	where year = 2020 and month = 1 
+	<if test="keyword1 != null and keyword1 != '' ">
+	and epidemicnm = #{keyword1}
+	</if>
+	group by month
+	</select>
+	
+	<select id="Pearson" resultType="PearVo" parameterType="Map">
+	select sum(p1)/count(*) p1, sum(p2)/count(*) p2, sum(p3)/count(*) p3, sum(p4)/count(*) p4, sum(p5)/count(*) p5, sum(p6)/count(*) p6, sum(p7)/count(*) p7, sum(p8)/count(*) p8, sum(p9)/count(*) p9, sum(p10)/count(*) p10, sum(p11)/count(*) p11 from pearson_tbl pt 
+	where year=2019 and month = 12
+	<if test="keyword1 != null and keyword1 != '' ">
+	and epidemicnm = #{keyword1}
+	</if>
+	group by year, month
+	order by year, month;
+	</select>
+	
+	<select id="NPear" resultType="Double" parameterType="Map">
+	select concat(coalesce(sum((value/mv)*100)/12, 0)) as value from webdata_value_tbl wvt2 join(
+	select wvt.epidemicnm, max(value) as mv from webdata_value_tbl wvt
+	where year = 2019 and type = 'news' group by wvt.epidemicnm) a on(a.epidemicnm = wvt2.epidemicnm)
+	where year = 2019 and type = 'news'
+	<if test="keyword1 == null">
+	and wvt2.epidemicnm = 'A형간염'
+	</if>
+	<if test="keyword1 != null and keyword1 != '' ">
+	and wvt2.epidemicnm = #{keyword1}
+	</if>
+	</select>
+	
+	<select id="InfNm" resultType="InfNmVo">
+	select distinct substring(infdisnm, 0, 6) as infdisnm from infection_disease_tbl idt
+	</select>
+	
+	<select id="InfNms" resultType="InfNmVo">
+	select distinct infdisnm as infdisnm from infection_disease_tbl idt
+	</select>
+	
+	<select id="Sinm" resultType="InfNmVo">
+	select sinm from si_code_vw scv
+	</select>
+	
+	<select id="AlterDate">
+		ALTER TABLE public.newscontent_tbl ALTER COLUMN "date" TYPE date USING "date"::date;
+	</select>
+	
+	<select id="AlterVarchar">
+		ALTER TABLE public.newscontent_tbl ALTER COLUMN "date"TYPE varchar(50) USING "date"::varchar;
+	</select>
+	
+	<insert id="insertNews" parameterType="Map">
+	INSERT INTO newscontent_tbl(date, content, url) values(
+	#{date}, #{content}, #{url}
+	)
+	</insert>
+	
+	<insert id="insertSearchq" parameterType="Map">
+	INSERT INTO searchq_1
+	<choose>
+		<when test="sq2 == null">
+		(date, infdisnm, sq1, sq2) values(
+			#{date}, #{infnm},#{sq0},#{sq1}
+			)
+		</when>
+		<when test="sq3 == null">
+		(date, infdisnm, sq1, sq2, sq3) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2}
+			)
+		</when>
+		<when test="sq4 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3}
+		)
+		</when>
+		<when test="sq5 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4}
+		)
+		</when>
+		<when test="sq6 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5}
+		)
+		</when>
+		<when test="sq7 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6, sq7) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5},#{sq6}
+			)
+		</when>
+		<when test="sq8 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6, sq7, sq8) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5},#{sq6},#{sq7}
+		)
+		</when>
+		<when test="sq9 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6, sq7, sq8, sq9) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5},#{sq6},#{sq7},#{sq8}
+		)
+		</when>
+		<when test="sq10 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6, sq7, sq8, sq9, sq10) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5},#{sq6},#{sq7},#{sq8},#{sq9}
+		)
+		</when>
+		<when test="sq11 == null">
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6, sq7, sq8, sq9, sq10, sq11) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5},#{sq6},#{sq7},#{sq8},#{sq9},#{sq10}
+		)
+		</when>
+		<otherwise>
+		(date, infdisnm, sq1, sq2, sq3, sq4, sq5, sq6, sq7, sq8, sq9, sq10, sq11, sq12) values(
+			#{date}, #{infnm},#{sq0},#{sq1},#{sq2},#{sq3},#{sq4},#{sq5},#{sq6},#{sq7},#{sq8},#{sq9},#{sq10},#{sq11}
+		)
+		</otherwise>
+	</choose>
+	</insert>
+	
+	<delete id="newsdelete">
+	DELETE FROM newscontent_tbl
+	WHERE ctid IN (
+		SELECT T.ctid
+		FROM (
+			SELECT url, ctid 
+			, ROW_NUMBER() OVER(PARTITION BY url, url ORDER BY date) AS ROW_NUM
+			FROM newscontent_tbl
+			order by date
+		) T
+		WHERE T.ROW_NUM > 1
+	) ;
+	</delete>
+	
+	<delete id="measles">
+	delete from newscontent_tbl
+	where content like <![CDATA['%홍역</b>을 치%']]>
+	</delete>
+	
+	<select id="grade_inf" parameterType="Map" resultType="GradeVo">
+	select idc.infdisid as infdisid, idc.infdisnm as infdisnm from infection_disease_code idc join infection_disease_tbl idt on(idc.infdisnm = idt.infdisnm)
+	where idc.gb like concat(concat('%',#{grade}, '%')) and year = cast(#{year} as int) and month = cast(#{month} as int)
+	group by idc.infdisid, idc.infdisnm
+	order by sum(count) desc;
+	</select>
+	
+	<select id="one_month_inf" parameterType="Map" resultType="InfectionVo2">
+		select date, sum(count) as count from infection_disease_detail_tbl iddt
+		where date like #{date}
+		<if test="infdisid != '' and infdisid != null ">
+		and infdisid = cast(#{infdisid} as int)
+		</if>
+		group by date
+		order by date;
+	</select>
+	
+	<select id="gender_inf" parameterType="Map" resultType="GenderVo">
+		select sex as gender, sum(count) as count from infection_disease_detail_tbl iddt
+		where date like #{date}
+		<if test="infdisid != '' and infdisid != null ">
+		and infdisid = cast(#{infdisid} as int)
+		</if>
+		group by sex;
+	</select>
+	
+	<select id="age_inf" parameterType="Map" resultType="AgeVo">
+		select age, sum(count) as count from infection_disease_detail_tbl iddt
+		where date like #{date}
+		<if test="infdisid != '' and infdisid != null ">
+		and infdisid = cast(#{infdisid} as int)
+		</if>
+		group by age;
+	</select>
+	
+	<select id="Years2_inf" parameterType="Map" resultType="YearsVo">
+	select year, month, sum(count) as count from infection_disease_tbl idt
+		where year = cast(#{year} as int)-2
+		<if test="infdisid != '' and infdisid != null ">
+		and infdisid = cast(#{infdisid} as int)
+		</if> 
+		group by year, month
+		order by year, month;
+	</select>
+	
+	<select id="Years1_inf" parameterType="Map" resultType="YearsVo">
+	select year, month, sum(count) as count from infection_disease_tbl idt
+		where year = cast(#{year} as int)-1
+		<if test="infdisid != '' and infdisid != null ">
+		and infdisid = cast(#{infdisid} as int)
+		</if>
+		group by year, month
+		order by year, month;
+	</select>
+	
+	<select id="Years_inf" parameterType="Map" resultType="YearsVo">
+	select year, month, sum(count) as count from infection_disease_tbl idt
+		where year = cast(#{year} as int)
+		<if test="infdisid != '' and infdisid != null ">
+		and infdisid = cast(#{infdisid} as int)
+		</if> 
+		group by year, month
+		order by year, month;
+	</select>
+	
+	<select id="search_trend" parameterType="Map" resultType="TrendVo">
+	select sum(cast(sq1 as float)) as sq1, sum(cast(sq2 as float)) as sq2, sum(cast(sq3 as float)) as sq3, sum(cast(sq4 as float)) as sq4, sum(cast(sq5 as float)) as sq5, sum(cast(sq6 as float)) as sq6, sum(cast(sq7 as float)) as sq7, sum(cast(sq8 as float)) as sq8, sum(cast(sq9 as float)) as sq9, sum(cast(sq10 as float)) as sq10, sum(cast(sq11 as float)) as sq11, sum(cast(sq12 as float)) as sq12 from searchq_1 s
+	where date like #{date1} and infdisnm like concat(concat('%',#{infdisnm}, '%'))
+	</select>
+	
+	<select id="news_count" parameterType="Map" resultType="CountVo">
+	select to_char(cast(date as date), 'YYYY-MM') as date, count(*) as count from newscontent_tbl nt
+	where date between #{year} and #{date} and content like concat(concat('%',#{infdisnm}, '%'))
+	group by to_char(cast(date as date), 'YYYY-MM')
+	order by date;
+	</select>
+	
+	<select id="news_content" parameterType="Map" resultType="NewscontentVo">
+	select content, url from newscontent_tbl nt
+	where content like concat(concat('%',#{infdisnm}, '%'))
+	order by date desc
+	limit 8 offset 0;
+	</select>
+	
+	<select id="inf_arrange" parameterType="Map" resultType="ArrangeVo">
+	select infdisnm, definition, symptom, relevant from inf_arrange ia
+	where infdisnm = #{infdisnm};
+	</select>
+	
+	<select id="year_count" parameterType="Map" resultType="Sicd_DateVo">
+	select sum(count) as count from infection_disease_tbl idt
+	where year = #{year} 
+	<if test='sicd != ""'>
+		and sicd = #{sicd}
+	</if>
+	</select>
+	
+	<select id="month_count" parameterType="Map" resultType="Sicd_DateVo">
+	select sum(count) as count from infection_disease_tbl idt
+	where year = #{year} and month = #{month} 
+	<if test='sicd != ""'>
+		and sicd = #{sicd}
+	</if>
+	</select>
+	
+	<select id="back_month" parameterType="Map" resultType="Sicd_DateVo">
+	select sum(count) as count from infection_disease_tbl idt
+	where year = #{year2} and month = #{month2} 
+	<if test='sicd != ""'>
+		and sicd = #{sicd}
+	</if>
+	</select>
+	
+	<select id="sicd_max" parameterType="Map" resultType="Sicd_DateVo">
+	select sinm, sum(count) as count from infection_disease_tbl idt
+	where year = cast(#{year} as int) and month = cast(#{month} as int)
+	group by sinm
+	order by count desc
+	limit 1;
+	</select>
+	
+	<select id="age_max" parameterType="Map" resultType="Sicd_DateVo">
+	select cda.age as age, (cda.ccount + a.scount) as count from 
+	(select age, sum(count) as ccount from covid_date_age cda where date like #{date} group by age) cda join
+	(select age, sum(count) as scount from infection_disease_detail_tbl iddt where date like #{date} group by age) a on(a.age = cda.age)
+	group by cda.age, a.scount, cda.ccount
+	order by count desc
+	limit 1;
+	</select>
+	
+	<select id="search_inf" parameterType="Map" resultType="GradeVo">
+	select infdisnm from infection_disease_code idc
+	where infdisnm like #{text};
+	</select>
+	
+	<select id="covid_age" parameterType="Map" resultType="CovidVo">
+	select age, sum(count) as count from covid_date_age
+	where date like #{date}
+	group by age
+	order by age;
+	</select>
+	
+	<select id="covid_gender" parameterType="Map" resultType="CovidVo">
+	select gender, sum(count) as count from covid_date_gender cdg
+	where date like #{date}
+	group by gender
+	order by gender;
+	</select>
+	
+	<select id="covid_date" parameterType="Map" resultType="CovidVo">
+	select date, sum(count) as count from covid_date_age
+	where date like #{date}
+	group by date
+	order by date;
+	</select>
+	
+</mapper>
+
+

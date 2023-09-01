@@ -1,0 +1,24 @@
+:root {
+    /*Primary Color*/
+    --pri-800: #021A2D;
+    --pri-700: #3E60C4;
+    --pri-600: #446BF7;
+    --pri-500: #1F7DEB;
+    --pri-400: #3C9DF5;
+    --pri-300: #6C8192;
+    --pri-200: #CAD3DC;
+
+    /*Secondary Color*/
+    --sec-1: #13AEAE;
+    --sec-2: #F94378;
+
+    /*Gray Color*/
+    --gray-800: #333333;
+    --gray-700: #555555;
+    --gray-600: #5B5C61;
+    --gray-500: #8D8D8D;
+    --gray-400: #B8B8B8;
+    --gray-300: #D4D4D4;
+    --gray-200: #EFEFEF;
+    --gray-100: #F8F8F8;
+}
